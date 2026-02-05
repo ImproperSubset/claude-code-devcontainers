@@ -44,7 +44,6 @@
     "--sysctl=net.ipv6.conf.default.disable_ipv6=1",
     "--sysctl=net.ipv6.conf.lo.disable_ipv6=1",
     "--add-host=host.docker.internal:host-gateway",
-    "--network=claude-code-opentelemetry_otel",
     "--env-file=${localWorkspaceFolder}/.env"
   ],
   "customizations": {
