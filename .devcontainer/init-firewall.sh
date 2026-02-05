@@ -38,6 +38,9 @@ if [ -z "$DOCKER_NETWORKS" ]; then
 fi
 
 # 3. Create ipset with CIDR support (do this BEFORE flushing so we can use network)
+# Flush filter table (not nat — preserves Docker DNS rules) so ipset isn't held by rules from a previous run
+iptables -F OUTPUT 2>/dev/null || true
+iptables -F INPUT 2>/dev/null || true
 ipset destroy allowed-domains 2>/dev/null || true
 ipset create allowed-domains hash:net
 
@@ -392,12 +395,12 @@ else
     echo "  This is expected in some Docker environments and does not affect security"
 fi
 
-# Verify blocked domains
-if curl --connect-timeout 5 https://example.com >/dev/null 2>&1; then
-    echo "ERROR: Firewall verification failed - was able to reach https://example.com"
+# Verify blocked domains (wikipedia.org runs its own infra, not behind any allowlisted CDN)
+if curl --connect-timeout 5 https://wikipedia.org >/dev/null 2>&1; then
+    echo "ERROR: Firewall verification failed - was able to reach https://wikipedia.org"
     exit 1
 else
-    echo "Firewall verification passed - unable to reach https://example.com as expected"
+    echo "Firewall verification passed - unable to reach https://wikipedia.org as expected"
 fi
 
 # Verify GitHub API access
