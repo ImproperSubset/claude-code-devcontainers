@@ -1,6 +1,7 @@
-FROM node:22
+FROM node:22-bookworm
 
 ARG TZ
+ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ="$TZ"
 
 ARG CLAUDE_CODE_VERSION=latest
@@ -149,7 +150,7 @@ WORKDIR /workspaces
 ARG GIT_DELTA_VERSION=0.18.2
 RUN ARCH=$(dpkg --print-architecture) && \
   wget "https://github.com/dandavison/delta/releases/download/${GIT_DELTA_VERSION}/git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" && \
-  sudo dpkg -i "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" && \
+  dpkg -i "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" && \
   rm "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb"
 
 # Pinned versions for modern CLI tools (update manually)
@@ -179,14 +180,27 @@ RUN cd /tmp && \
     ./aws/install --install-dir /usr/local/aws-cli --bin-dir /usr/local/bin && \
     rm -rf awscliv2.zip aws
 
-# Install zoxide (smart cd) to system path
-RUN curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | BIN_DIR=/usr/local/bin sh
+# Pinned versions for system tools (update manually)
+ARG ZOXIDE_VERSION=0.9.9
+ARG UV_VERSION=0.10.0
+ARG BUN_VERSION=1.3.8
 
-# Install uv (fast Python package manager) to system path
-RUN curl -LsSf https://astral.sh/uv/install.sh | env XDG_BIN_HOME=/usr/local/bin sh
+# Install zoxide (smart cd) to system path — direct binary, no curl|sh
+RUN RUST_ARCH=$([ "$(dpkg --print-architecture)" = "amd64" ] && echo "x86_64" || echo "aarch64") && \
+    wget "https://github.com/ajeetdsouza/zoxide/releases/download/v${ZOXIDE_VERSION}/zoxide-${ZOXIDE_VERSION}-${RUST_ARCH}-unknown-linux-musl.tar.gz" && \
+    tar xzf zoxide-*.tar.gz -C /usr/local/bin/ zoxide && \
+    rm zoxide-*.tar.gz
 
-# Install bun (fast JavaScript runtime) to system path
-RUN curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash
+# Install uv (fast Python package manager) to system path — pinned version
+RUN curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" | env XDG_BIN_HOME=/usr/local/bin sh
+
+# Install bun (fast JavaScript runtime) to system path — direct binary, no curl|sh
+RUN ARCH=$([ "$(dpkg --print-architecture)" = "amd64" ] && echo "x64" || echo "aarch64") && \
+    curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-${ARCH}.zip" -o /tmp/bun.zip && \
+    unzip /tmp/bun.zip -d /tmp/bun && \
+    mv /tmp/bun/bun-linux-${ARCH}/bun /usr/local/bin/bun && \
+    chmod +x /usr/local/bin/bun && \
+    rm -rf /tmp/bun /tmp/bun.zip
 
 # Set up non-root user
 USER node
@@ -203,7 +217,7 @@ ENV EDITOR=nano
 ENV VISUAL=nano
 
 # Powerlevel10k theme and oh-my-zsh with plugins
-ARG ZSH_IN_DOCKER_VERSION=1.2.0
+ARG ZSH_IN_DOCKER_VERSION=1.2.1
 RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/v${ZSH_IN_DOCKER_VERSION}/zsh-in-docker.sh)" -- \
   -p git \
   -p fzf \
