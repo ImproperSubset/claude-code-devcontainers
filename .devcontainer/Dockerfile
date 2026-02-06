@@ -153,22 +153,20 @@ RUN ARCH=$(dpkg --print-architecture) && \
   rm "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb"
 
 # Install modern CLI tools from GitHub releases
-RUN ARCH=$(dpkg --print-architecture) && \
+RUN RUST_ARCH=$([ "$(dpkg --print-architecture)" = "amd64" ] && echo "x86_64" || echo "aarch64") && \
   # eza (modern ls)
   EZA_VERSION=$(curl -s https://api.github.com/repos/eza-community/eza/releases/latest | jq -r .tag_name | sed 's/^v//') && \
-  wget "https://github.com/eza-community/eza/releases/download/v${EZA_VERSION}/eza_${ARCH}-unknown-linux-gnu.tar.gz" && \
+  wget "https://github.com/eza-community/eza/releases/download/v${EZA_VERSION}/eza_${RUST_ARCH}-unknown-linux-gnu.tar.gz" && \
   tar xzf eza_*-unknown-linux-gnu.tar.gz -C /usr/local/bin/ && \
   rm eza_*-unknown-linux-gnu.tar.gz && \
   # dust (modern du)
   DUST_VERSION=$(curl -s https://api.github.com/repos/bootandy/dust/releases/latest | jq -r .tag_name | sed 's/^v//') && \
-  DUST_ARCH=$([ "$ARCH" = "amd64" ] && echo "x86_64" || echo "aarch64") && \
-  wget "https://github.com/bootandy/dust/releases/download/v${DUST_VERSION}/dust-v${DUST_VERSION}-${DUST_ARCH}-unknown-linux-musl.tar.gz" && \
-  tar xzf dust-*.tar.gz --strip-components=1 -C /usr/local/bin/ dust-v${DUST_VERSION}-${DUST_ARCH}-unknown-linux-musl/dust && \
+  wget "https://github.com/bootandy/dust/releases/download/v${DUST_VERSION}/dust-v${DUST_VERSION}-${RUST_ARCH}-unknown-linux-musl.tar.gz" && \
+  tar xzf dust-*.tar.gz --strip-components=1 -C /usr/local/bin/ dust-v${DUST_VERSION}-${RUST_ARCH}-unknown-linux-musl/dust && \
   rm dust-*.tar.gz && \
   # procs (modern ps)
   PROCS_VERSION=$(curl -s https://api.github.com/repos/dalance/procs/releases/latest | jq -r .tag_name | sed 's/^v//') && \
-  PROCS_ARCH=$([ "$ARCH" = "amd64" ] && echo "x86_64" || echo "aarch64") && \
-  wget "https://github.com/dalance/procs/releases/download/v${PROCS_VERSION}/procs-v${PROCS_VERSION}-${PROCS_ARCH}-linux.zip" && \
+  wget "https://github.com/dalance/procs/releases/download/v${PROCS_VERSION}/procs-v${PROCS_VERSION}-${RUST_ARCH}-linux.zip" && \
   unzip procs-*.zip -d /usr/local/bin/ && \
   rm procs-*.zip
 
