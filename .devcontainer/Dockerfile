@@ -237,6 +237,9 @@ COPY --chown=node:node p10k.zsh /home/node/.p10k.zsh
 # Shell customizations — must be AFTER oh-my-zsh source to avoid being overwritten
 RUN cat >> /home/node/.zshrc <<'ZSHEOF'
 
+# ---- zsh history (persisted to volume) ----
+export HISTFILE=/commandhistory/.zsh_history
+
 # ---- p10k theme ----
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
