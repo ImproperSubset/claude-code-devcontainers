@@ -6,6 +6,7 @@
 #   ./shell.sh ls -la   # run a command
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
+WORKSPACE="/workspaces/$(basename "$REPO_DIR")"
 
 CONTAINER_ID=$(docker ps -q --filter "label=devcontainer.local_folder=$REPO_DIR")
 
@@ -19,7 +20,7 @@ TTY_FLAG="-i"
 [ -t 0 ] && TTY_FLAG="-it"
 
 if [ $# -eq 0 ]; then
-    exec docker exec $TTY_FLAG -w /workspaces/claude-code-devcontainers "$CONTAINER_ID" zsh -l
+    exec docker exec $TTY_FLAG -w "$WORKSPACE" "$CONTAINER_ID" zsh -l
 else
-    exec docker exec $TTY_FLAG -w /workspaces/claude-code-devcontainers "$CONTAINER_ID" "$@"
+    exec docker exec $TTY_FLAG -w "$WORKSPACE" "$CONTAINER_ID" "$@"
 fi

@@ -201,7 +201,8 @@ RUN cat >> /home/node/.zshrc <<'EOF'
 # Modern CLI tool aliases
 alias fd=fdfind
 alias rg='rg --smart-case'
-alias cat='bat --paging=never --style=plain'
+alias cat='batcat --paging=never --style=plain'
+alias bat='batcat'
 alias ls='eza'
 alias ll='eza -lah'
 alias la='eza -a'
