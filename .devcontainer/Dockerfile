@@ -193,19 +193,25 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
   -a "source /usr/share/doc/fzf/examples/completion.zsh" \
   -a "export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
   -a "export PATH=\$PATH:/home/node/.npm-global/bin:/home/node/.local/bin" \
-  -a "alias fd=fdfind" \
-  -a "alias rg='rg --smart-case'" \
-  -a "alias cat='bat --paging=never --style=plain'" \
-  -a "alias ls='eza'" \
-  -a "alias ll='eza -lah'" \
-  -a "alias la='eza -a'" \
-  -a "alias lt='eza --tree --level=2'" \
-  -a "alias du='dust'" \
-  -a "alias df='duf'" \
-  -a "alias ps='procs'" \
-  -a "alias top='btop'" \
-  -a 'eval "$(zoxide init zsh)"' \
   -x
+
+# Modern CLI aliases — must be AFTER oh-my-zsh source to avoid being overwritten
+RUN cat >> /home/node/.zshrc <<'EOF'
+
+# Modern CLI tool aliases
+alias fd=fdfind
+alias rg='rg --smart-case'
+alias cat='bat --paging=never --style=plain'
+alias ls='eza'
+alias ll='eza -lah'
+alias la='eza -a'
+alias lt='eza --tree --level=2'
+alias du='dust'
+alias df='duf'
+alias ps='procs'
+alias top='btop'
+eval "$(zoxide init zsh)"
+EOF
 
 # npm CLI packages (Claude Code, Codex, Gemini, Wrangler, Vercel) installed via postCreateCommand
 # This ensures packages install AFTER npm-global volume mounts, preventing version conflicts
