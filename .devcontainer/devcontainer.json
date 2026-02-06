@@ -110,13 +110,15 @@
     "source=aws-config-shared,target=/home/node/.aws,type=volume",
     "source=wrangler-config-shared,target=/home/node/.wrangler,type=volume",
     "source=vercel-config-shared,target=/home/node/.vercel,type=volume",
-    "source=${localEnv:HOME}/.brain,target=/home/node/.brain,type=bind"
+    "source=${localEnv:HOME}/.brain,target=/home/node/.brain,type=bind",
+    "source=${localEnv:HOME}/git/hh-claude-code-setup,target=/home/node/.claude-setup,type=bind,readonly"
   ],
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
     "POWERLEVEL9K_DISABLE_GITSTATUS": "true",
-    "NPM_CONFIG_PREFIX": "/home/node/.npm-global"
+    "NPM_CONFIG_PREFIX": "/home/node/.npm-global",
+    "DEVCONTAINER": "true"
     // "CLAUDE_CODE_ENABLE_TELEMETRY": "1"
     // "OTEL_LOG_USER_PROMPTS": "1",
     // "OTEL_METRICS_EXPORTER": "otlp",
