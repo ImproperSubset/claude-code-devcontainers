@@ -58,16 +58,21 @@ else
     cp "$SCRIPT_DIR/.env.example" "$DEST/.env"
 fi
 
-# Ensure .env is gitignored
-if [ -f "$DEST/.gitignore" ]; then
-    if ! grep -qx '\.env' "$DEST/.gitignore"; then
-        echo "Adding .env to .gitignore ..."
-        echo '.env' >> "$DEST/.gitignore"
+# Ensure deployed files are gitignored
+gitignore_add() {
+    local pattern="$1"
+    if [ -f "$DEST/.gitignore" ]; then
+        grep -qxF "$pattern" "$DEST/.gitignore" 2>/dev/null && return
+        echo "$pattern" >> "$DEST/.gitignore"
+    else
+        echo "$pattern" > "$DEST/.gitignore"
     fi
-else
-    echo "Creating .gitignore with .env ..."
-    echo '.env' > "$DEST/.gitignore"
-fi
+}
+
+echo "Updating .gitignore ..."
+gitignore_add '.env'
+gitignore_add '.devcontainer'
+gitignore_add 'shell.sh'
 
 echo ""
 echo "Deployed to $DEST (symlinked from $SCRIPT_DIR)"
