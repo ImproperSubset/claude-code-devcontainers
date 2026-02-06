@@ -31,6 +31,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   # Process and system tools
   procps \
   htop \
+  btop \
   tree \
   sudo \
   # Network tools
@@ -56,6 +57,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   # Fast search tools (modern replacements)
   ripgrep \
   fd-find \
+  bat \
+  duf \
   # Build essentials (for native npm modules)
   build-essential \
   gcc \
@@ -149,6 +152,26 @@ RUN ARCH=$(dpkg --print-architecture) && \
   sudo dpkg -i "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" && \
   rm "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb"
 
+# Install modern CLI tools from GitHub releases
+RUN ARCH=$(dpkg --print-architecture) && \
+  # eza (modern ls)
+  EZA_VERSION=$(curl -s https://api.github.com/repos/eza-community/eza/releases/latest | jq -r .tag_name | sed 's/^v//') && \
+  wget "https://github.com/eza-community/eza/releases/download/v${EZA_VERSION}/eza_${ARCH}-unknown-linux-gnu.tar.gz" && \
+  tar xzf eza_*-unknown-linux-gnu.tar.gz -C /usr/local/bin/ && \
+  rm eza_*-unknown-linux-gnu.tar.gz && \
+  # dust (modern du)
+  DUST_VERSION=$(curl -s https://api.github.com/repos/bootandy/dust/releases/latest | jq -r .tag_name | sed 's/^v//') && \
+  DUST_ARCH=$([ "$ARCH" = "amd64" ] && echo "x86_64" || echo "aarch64") && \
+  wget "https://github.com/bootandy/dust/releases/download/v${DUST_VERSION}/dust-v${DUST_VERSION}-${DUST_ARCH}-unknown-linux-musl.tar.gz" && \
+  tar xzf dust-*.tar.gz --strip-components=1 -C /usr/local/bin/ dust-v${DUST_VERSION}-${DUST_ARCH}-unknown-linux-musl/dust && \
+  rm dust-*.tar.gz && \
+  # procs (modern ps)
+  PROCS_VERSION=$(curl -s https://api.github.com/repos/dalance/procs/releases/latest | jq -r .tag_name | sed 's/^v//') && \
+  PROCS_ARCH=$([ "$ARCH" = "amd64" ] && echo "x86_64" || echo "aarch64") && \
+  wget "https://github.com/dalance/procs/releases/download/v${PROCS_VERSION}/procs-v${PROCS_VERSION}-${PROCS_ARCH}-linux.zip" && \
+  unzip procs-*.zip -d /usr/local/bin/ && \
+  rm procs-*.zip
+
 # Set up non-root user
 USER node
 
@@ -174,6 +197,16 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
   -a "export PATH=\$PATH:/home/node/.npm-global/bin:/home/node/.local/bin" \
   -a "alias fd=fdfind" \
   -a "alias rg='rg --smart-case'" \
+  -a "alias cat='bat --paging=never --style=plain'" \
+  -a "alias ls='eza'" \
+  -a "alias ll='eza -lah'" \
+  -a "alias la='eza -a'" \
+  -a "alias lt='eza --tree --level=2'" \
+  -a "alias du='dust'" \
+  -a "alias df='duf'" \
+  -a "alias ps='procs'" \
+  -a "alias top='btop'" \
+  -a 'eval "$(zoxide init zsh)"' \
   -x
 
 # npm CLI packages (Claude Code, Codex, Gemini, Wrangler, Vercel) installed via postCreateCommand
@@ -186,6 +219,9 @@ RUN cd /tmp && \
     unzip awscliv2.zip && \
     ./aws/install --install-dir /home/node/.local/aws-cli --bin-dir /home/node/.local/bin && \
     rm -rf awscliv2.zip aws
+
+# Install zoxide (smart cd)
+RUN curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh
 
 # Install uv (fast Python package manager)
 # uv installer places binary at /home/node/.local/bin/uv
