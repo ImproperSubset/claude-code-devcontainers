@@ -184,35 +184,85 @@ ENV SHELL=/bin/zsh
 ENV EDITOR=nano
 ENV VISUAL=nano
 
-# Default powerline10k theme
+# Powerlevel10k theme and oh-my-zsh with plugins
 ARG ZSH_IN_DOCKER_VERSION=1.2.0
 RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/v${ZSH_IN_DOCKER_VERSION}/zsh-in-docker.sh)" -- \
   -p git \
   -p fzf \
+  -p sudo \
+  -p zsh-autosuggestions \
+  -p zsh-syntax-highlighting \
   -a "source /usr/share/doc/fzf/examples/key-bindings.zsh" \
   -a "source /usr/share/doc/fzf/examples/completion.zsh" \
   -a "export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
   -a "export PATH=\$PATH:/home/node/.npm-global/bin:/home/node/.local/bin" \
   -x
 
-# Modern CLI aliases — must be AFTER oh-my-zsh source to avoid being overwritten
-RUN cat >> /home/node/.zshrc <<'EOF'
+# Powerlevel10k config — matches host theme for consistency
+COPY --chown=node:node p10k.zsh /home/node/.p10k.zsh
 
-# Modern CLI tool aliases
+# Shell customizations — must be AFTER oh-my-zsh source to avoid being overwritten
+RUN cat >> /home/node/.zshrc <<'ZSHEOF'
+
+# ---- p10k theme ----
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+# ---- eza (better ls) ----
+alias ls='eza --icons --group-directories-first'
+alias ll='eza -alh --icons --group-directories-first --git'
+alias la='eza -a --icons --group-directories-first'
+alias lt='eza --tree --icons --level=2'
+
+# ---- bat (better cat) ----
+alias cat='batcat --paging=never'
+alias catt='batcat'
+alias bat='batcat'
+export MANPAGER="sh -c 'col -bx | batcat -l man -p'"
+alias -g -- -h='-h 2>&1 | batcat --language=help --style=plain'
+alias -g -- --help='--help 2>&1 | batcat --language=help --style=plain'
+
+# ---- ripgrep (better grep) ----
 alias fd=fdfind
 alias rg='rg --smart-case'
-alias cat='batcat --paging=never --style=plain'
-alias bat='batcat'
-alias ls='eza --icons'
-alias ll='eza -lah --icons'
-alias la='eza -a --icons'
-alias lt='eza --tree --level=2 --icons'
+alias grep='rg'
+
+# ---- zoxide (better cd) ----
+eval "$(zoxide init zsh)"
+alias cd='z'
+
+# ---- modern replacements ----
 alias du='dust'
 alias df='duf'
 alias ps='procs'
 alias top='btop'
-eval "$(zoxide init zsh)"
-EOF
+
+# ---- directory nav ----
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+
+# ---- safety nets ----
+alias cp='cp -v'
+alias mv='mv -v'
+alias rm='rm -I'
+
+# ---- fzf integration ----
+show_file_or_dir_preview="if [ -d {} ]; then eza --tree --color=always {} | head -200; else batcat -n --color=always --line-range :500 {}; fi"
+export FZF_CTRL_T_OPTS="--preview '$show_file_or_dir_preview'"
+export FZF_ALT_C_OPTS="--preview 'eza --tree --color=always {} | head -200'"
+_fzf_comprun() {
+  local command=$1
+  shift
+  case "$command" in
+    cd)           fzf --preview 'eza --tree --color=always {} | head -200' "$@" ;;
+    export|unset) fzf --preview "eval 'echo \${}'" "$@" ;;
+    ssh)          fzf --preview 'dig {}' "$@" ;;
+    *)            fzf --preview "$show_file_or_dir_preview" "$@" ;;
+  esac
+}
+
+alias reload='source ~/.zshrc'
+ZSHEOF
 
 # npm CLI packages (Claude Code, Codex, Gemini, Wrangler, Vercel) installed via postCreateCommand
 # This ensures packages install AFTER npm-global volume mounts, preventing version conflicts
