@@ -152,23 +152,41 @@ RUN ARCH=$(dpkg --print-architecture) && \
   sudo dpkg -i "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" && \
   rm "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb"
 
-# Install modern CLI tools from GitHub releases
+# Pinned versions for modern CLI tools (update manually)
+ARG EZA_VERSION=0.23.4
+ARG DUST_VERSION=1.2.4
+ARG PROCS_VERSION=0.14.10
+
+# Install modern CLI tools from GitHub releases (pinned versions)
 RUN RUST_ARCH=$([ "$(dpkg --print-architecture)" = "amd64" ] && echo "x86_64" || echo "aarch64") && \
   # eza (modern ls)
-  EZA_VERSION=$(curl -s https://api.github.com/repos/eza-community/eza/releases/latest | jq -r .tag_name | sed 's/^v//') && \
   wget "https://github.com/eza-community/eza/releases/download/v${EZA_VERSION}/eza_${RUST_ARCH}-unknown-linux-gnu.tar.gz" && \
   tar xzf eza_*-unknown-linux-gnu.tar.gz -C /usr/local/bin/ && \
   rm eza_*-unknown-linux-gnu.tar.gz && \
   # dust (modern du)
-  DUST_VERSION=$(curl -s https://api.github.com/repos/bootandy/dust/releases/latest | jq -r .tag_name | sed 's/^v//') && \
   wget "https://github.com/bootandy/dust/releases/download/v${DUST_VERSION}/dust-v${DUST_VERSION}-${RUST_ARCH}-unknown-linux-musl.tar.gz" && \
   tar xzf dust-*.tar.gz --strip-components=1 -C /usr/local/bin/ dust-v${DUST_VERSION}-${RUST_ARCH}-unknown-linux-musl/dust && \
   rm dust-*.tar.gz && \
   # procs (modern ps)
-  PROCS_VERSION=$(curl -s https://api.github.com/repos/dalance/procs/releases/latest | jq -r .tag_name | sed 's/^v//') && \
   wget "https://github.com/dalance/procs/releases/download/v${PROCS_VERSION}/procs-v${PROCS_VERSION}-${RUST_ARCH}-linux.zip" && \
   unzip procs-*.zip -d /usr/local/bin/ && \
   rm procs-*.zip
+
+# Install AWS CLI v2 to system path (not ~/.local which is volume-mounted)
+RUN cd /tmp && \
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+    ./aws/install --install-dir /usr/local/aws-cli --bin-dir /usr/local/bin && \
+    rm -rf awscliv2.zip aws
+
+# Install zoxide (smart cd) to system path
+RUN curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | BIN_DIR=/usr/local/bin sh
+
+# Install uv (fast Python package manager) to system path
+RUN curl -LsSf https://astral.sh/uv/install.sh | env XDG_BIN_HOME=/usr/local/bin sh
+
+# Install bun (fast JavaScript runtime) to system path
+RUN curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash
 
 # Set up non-root user
 USER node
@@ -192,6 +210,7 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
   -p sudo \
   -p zsh-autosuggestions \
   -p zsh-syntax-highlighting \
+  -a "DISABLE_AUTO_UPDATE=true" \
   -a "source /usr/share/doc/fzf/examples/key-bindings.zsh" \
   -a "source /usr/share/doc/fzf/examples/completion.zsh" \
   -a "export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
@@ -268,35 +287,17 @@ ZSHEOF
 # This ensures packages install AFTER npm-global volume mounts, preventing version conflicts
 # See devcontainer.json postCreateCommand for installation details
 
-# Install AWS CLI v2 to volume-persisted location
-RUN cd /tmp && \
-    curl "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o "awscliv2.zip" && \
-    unzip awscliv2.zip && \
-    ./aws/install --install-dir /home/node/.local/aws-cli --bin-dir /home/node/.local/bin && \
-    rm -rf awscliv2.zip aws
+# System tools (aws, zoxide, uv, bun) installed as root to /usr/local/bin above
+# to avoid volume shadowing — ~/.local and ~/.bun are mounted as shared volumes
 
-# Install zoxide (smart cd)
-RUN curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh
-
-# Install uv (fast Python package manager)
-# uv installer places binary at /home/node/.local/bin/uv
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/node/.bashrc && \
-    echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/node/.zshrc
-
-# Add .local/bin to PATH for uv and AWS CLI
+# Add .local/bin to PATH for user-installed tools
 ENV PATH="/home/node/.local/bin:$PATH"
 
 # Python 3.14 installation moved to init-python.sh (runs via postCreateCommand)
 # This ensures installation happens AFTER volume mounts, so it persists correctly
 # System Python 3.11 remains available for node-gyp compatibility
 
-# Install bun (fast JavaScript runtime)
-RUN curl -fsSL https://bun.sh/install | bash && \
-    echo 'export BUN_INSTALL="$HOME/.bun"' >> /home/node/.bashrc && \
-    echo 'export PATH="$BUN_INSTALL/bin:$PATH"' >> /home/node/.bashrc && \
-    echo 'export BUN_INSTALL="$HOME/.bun"' >> /home/node/.zshrc && \
-    echo 'export PATH="$BUN_INSTALL/bin:$PATH"' >> /home/node/.zshrc
+# bun global packages stored in ~/.bun (volume-mounted), binary at /usr/local/bin
 ENV BUN_INSTALL="/home/node/.bun"
 ENV PATH="$BUN_INSTALL/bin:$PATH"
 
