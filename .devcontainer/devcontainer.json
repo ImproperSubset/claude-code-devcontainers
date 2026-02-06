@@ -110,7 +110,8 @@
     "source=local-bin-shared,target=/home/node/.local,type=volume",
     "source=aws-config-shared,target=/home/node/.aws,type=volume",
     "source=wrangler-config-shared,target=/home/node/.wrangler,type=volume",
-    "source=vercel-config-shared,target=/home/node/.vercel,type=volume"
+    "source=vercel-config-shared,target=/home/node/.vercel,type=volume",
+    "source=${localEnv:HOME}/.brain,target=/home/node/.brain,type=bind"
   ],
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
