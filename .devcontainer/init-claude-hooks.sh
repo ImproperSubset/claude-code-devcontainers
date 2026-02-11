@@ -1,8 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-# Get workspace folder from environment or default
-WORKSPACE_FOLDER="${containerWorkspaceFolder:-/workspaces/claude-code-devcontainers}"
+# Get workspace folder from WORKSPACE_FOLDER env var (set in devcontainer.json containerEnv)
+if [[ -z "${WORKSPACE_FOLDER:-}" ]]; then
+    WORKSPACE_FOLDER="$(git rev-parse --show-toplevel 2>/dev/null || echo /workspaces)"
+    echo "Warning: WORKSPACE_FOLDER not set, detected: $WORKSPACE_FOLDER"
+fi
 WORKSPACE_HOOKS="$WORKSPACE_FOLDER/.claude/hooks"
 TEMPLATE_DIR="/usr/local/share/claude-defaults/hooks"
 

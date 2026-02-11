@@ -90,9 +90,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   liblzma-dev \
   # Locales for proper encoding
   locales \
-  # Browser automation (Chromium for Chrome DevTools MCP)
-  chromium \
-  # Chromium dependencies
+  # Browser automation (Google Chrome for Claude --chrome extension + DevTools MCP)
+  # Chrome dependencies (chrome installed separately via Google apt repo)
   fonts-liberation \
   libatk-bridge2.0-0 \
   libatk1.0-0 \
@@ -110,7 +109,17 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   libxkbcommon0 \
   libxrandr2 \
   xdg-utils \
+  # Mesa software rendering (Chrome needs swrast even with --disable-gpu)
+  libgl1-mesa-dri \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install Google Chrome (required for Claude --chrome extension, Chromium won't work)
+RUN curl -fsSL https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o /tmp/chrome.deb && \
+  apt-get update && apt-get install -y --no-install-recommends /tmp/chrome.deb && \
+  rm /tmp/chrome.deb && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install Ghostty terminfo for proper terminal key handling via docker exec
+COPY xterm-ghostty /usr/share/terminfo/x/xterm-ghostty
 
 # Create python symlink for convenience (PEP 394 compliant)
 # This allows 'python' command to work in addition to 'python3'
@@ -141,8 +150,8 @@ ENV DEVCONTAINER=true
 
 # Create config directories and set permissions
 # Note: Workspace directory is created and mounted by VS Code automatically
-RUN mkdir -p /home/node/.config/gh /home/node/.claude /home/node/.codex /home/node/.gemini /home/node/.npm-global/lib /home/node/.aws /home/node/.wrangler /home/node/.vercel /home/node/.local/bin && \
-  chown -R node:node /home/node/.config /home/node/.claude /home/node/.codex /home/node/.gemini /home/node/.npm-global /home/node/.aws /home/node/.wrangler /home/node/.vercel /home/node/.local
+RUN mkdir -p /home/node/.config/gh /home/node/.claude /home/node/.codex /home/node/.gemini /home/node/.npm-global/lib /home/node/.aws /home/node/.wrangler /home/node/.vercel /home/node/.local/bin /run/user/1000 && \
+  chown -R node:node /home/node/.config /home/node/.claude /home/node/.codex /home/node/.gemini /home/node/.npm-global /home/node/.aws /home/node/.wrangler /home/node/.vercel /home/node/.local /run/user/1000
 
 # Default working directory (VS Code will override this with actual workspace mount)
 WORKDIR /workspaces
@@ -219,9 +228,11 @@ ENV VISUAL=nano
 # Powerlevel10k theme and oh-my-zsh with plugins
 ARG ZSH_IN_DOCKER_VERSION=1.2.1
 RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/v${ZSH_IN_DOCKER_VERSION}/zsh-in-docker.sh)" -- \
+  -p fzf-tab \
   -p git \
   -p fzf \
   -p sudo \
+  -p zsh-completions \
   -p zsh-autosuggestions \
   -p zsh-syntax-highlighting \
   -a "DISABLE_AUTO_UPDATE=true" \
@@ -230,6 +241,15 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
   -a "export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
   -a "export PATH=\$PATH:/home/node/.npm-global/bin:/home/node/.local/bin" \
   -x
+
+# Fix zsh-in-docker bug: it generates '[ -z "" ] && export TERM=xterm' which always clobbers TERM
+RUN sed -i '/\[ -z "" \] && export TERM=xterm/d' /home/node/.zshrc
+
+# Install third-party zsh plugins (oh-my-zsh must exist first)
+RUN git clone --depth=1 https://github.com/Aloxaf/fzf-tab ${ZSH_CUSTOM:-/home/node/.oh-my-zsh/custom}/plugins/fzf-tab && \
+    git clone --depth=1 https://github.com/zsh-users/zsh-completions ${ZSH_CUSTOM:-/home/node/.oh-my-zsh/custom}/plugins/zsh-completions && \
+    git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-/home/node/.oh-my-zsh/custom}/plugins/zsh-autosuggestions && \
+    git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting ${ZSH_CUSTOM:-/home/node/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
 
 # Powerlevel10k config — matches host theme for consistency
 COPY --chown=node:node p10k.zsh /home/node/.p10k.zsh
@@ -254,8 +274,9 @@ alias cat='batcat --paging=never'
 alias catt='batcat'
 alias bat='batcat'
 export MANPAGER="sh -c 'col -bx | batcat -l man -p'"
-alias -g -- -h='-h 2>&1 | batcat --language=help --style=plain'
-alias -g -- --help='--help 2>&1 | batcat --language=help --style=plain'
+# help aliases — use functions instead of global aliases to avoid breaking zsh builtins
+help() { "$@" -h 2>&1 | batcat --language=help --style=plain; }
+helpf() { "$@" --help 2>&1 | batcat --language=help --style=plain; }
 
 # ---- ripgrep (better grep) ----
 alias fd=fdfind
@@ -264,7 +285,6 @@ alias grep='rg'
 
 # ---- zoxide (better cd) ----
 eval "$(zoxide init zsh)"
-alias cd='z'
 
 # ---- modern replacements ----
 alias du='dust'
@@ -297,7 +317,16 @@ _fzf_comprun() {
   esac
 }
 
+# ---- fzf-tab previews ----
+zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza --tree --color=always $realpath | head -200'
+zstyle ':fzf-tab:complete:ls:*' fzf-preview 'eza --tree --color=always $realpath | head -200'
+zstyle ':fzf-tab:complete:*:*' fzf-preview 'if [ -d $realpath ]; then eza --tree --color=always $realpath | head -200; elif [ -f $realpath ]; then batcat -n --color=always --line-range :500 $realpath; fi'
+
 alias reload='source ~/.zshrc'
+
+# ---- claude wrapper (yolo mode via CLI flag) ----
+# Wrapper is bind-mounted from ~/.brain; symlinked to PATH by postCreate.sh
+alias claude='claude-wrapper'
 ZSHEOF
 
 # npm CLI packages (Claude Code, Codex, Gemini, Wrangler, Vercel) installed via postCreateCommand
@@ -327,6 +356,20 @@ RUN git config --global core.excludesfile ~/.gitignore_global && \
 # Switch to root for final setup (scripts, sudoers, templates)
 USER root
 
+# Google Chrome wrapper — Debian's wrapper doesn't read a flags file, so we
+# create our own at /usr/local/bin (precedes /opt/google/chrome in PATH).
+# Reads flags from ~/.config/google-chrome/chrome-flags.conf (one per line).
+RUN printf '#!/bin/bash\nFLAGS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/google-chrome/chrome-flags.conf"\nEXTRA_FLAGS=()\nif [[ -f "$FLAGS_FILE" ]]; then\n  while IFS= read -r line; do\n    [[ -n "$line" && "$line" != "#"* ]] && EXTRA_FLAGS+=("$line")\n  done < "$FLAGS_FILE"\nfi\nexec /opt/google/chrome/google-chrome "${EXTRA_FLAGS[@]}" "$@" 2> >(grep -vE "dbus/(bus|object_proxy)\\.cc" >&2)\n' \
+    > /usr/local/bin/google-chrome && chmod +x /usr/local/bin/google-chrome
+
+# Google Chrome default flags — pre-created at the volume mount point so Docker's
+# named-volume initialization copies them (with correct ownership) on first run.
+RUN mkdir -p /usr/local/share/chrome-defaults /home/node/.config/google-chrome && \
+    printf '%s\n' '--no-sandbox' '--ozone-platform=wayland' '--disable-gpu' '--disable-dev-shm-usage' '--gtk-version=4' \
+    | tee /usr/local/share/chrome-defaults/chrome-flags.conf \
+          /home/node/.config/google-chrome/chrome-flags.conf > /dev/null && \
+    chown -R node:node /home/node/.config/google-chrome
+
 # Create directory for Claude Code and Codex defaults
 RUN mkdir -p /usr/local/share/claude-defaults /usr/local/share/claude-defaults/hooks /usr/local/share/codex-defaults
 
@@ -337,6 +380,8 @@ COPY init-claude-hooks.sh /usr/local/bin/
 COPY init-codex-config.sh /usr/local/bin/
 COPY init-opencode-config.sh /usr/local/bin/
 COPY init-python.sh /usr/local/bin/
+COPY postCreate.sh /usr/local/bin/
+COPY setup-git-hooks.sh /usr/local/bin/
 COPY --chown=node:node settings.json.template /usr/local/share/claude-defaults/settings.json
 COPY --chown=node:node mcp.json.template /usr/local/share/claude-defaults/mcp.json
 COPY --chmod=755 session-start.sh.template /usr/local/share/claude-defaults/hooks/session-start.sh

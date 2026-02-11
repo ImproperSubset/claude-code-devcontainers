@@ -9,12 +9,16 @@
 # Strict error handling
 set -euo pipefail
 
-# Dynamically resolve repository root
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Resolve repository root from WORKSPACE_FOLDER env var (set in devcontainer.json containerEnv)
+if [[ -z "${WORKSPACE_FOLDER:-}" ]]; then
+    WORKSPACE_FOLDER="$(git rev-parse --show-toplevel 2>/dev/null || echo /workspaces)"
+    echo "Warning: WORKSPACE_FOLDER not set, detected: $WORKSPACE_FOLDER"
+fi
+REPO_ROOT="$WORKSPACE_FOLDER"
 HOOKS_DIR="$REPO_ROOT/.git/hooks"
 
 # Validate git repository (works with worktrees and submodules)
+cd "$REPO_ROOT"
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
     echo "❌ ERROR: Not a git repository"
     echo "Current directory: $(pwd)"

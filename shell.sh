@@ -20,7 +20,7 @@ TTY_FLAG="-i"
 [ -t 0 ] && TTY_FLAG="-it"
 
 if [ $# -eq 0 ]; then
-    exec docker exec $TTY_FLAG -w "$WORKSPACE" "$CONTAINER_ID" zsh -l
+    exec docker exec $TTY_FLAG -e "TERM=${TERM:-xterm-256color}" -w "$WORKSPACE" "$CONTAINER_ID" zsh -l
 else
-    exec docker exec $TTY_FLAG -w "$WORKSPACE" "$CONTAINER_ID" "$@"
+    exec docker exec $TTY_FLAG -e "TERM=${TERM:-xterm-256color}" -w "$WORKSPACE" "$CONTAINER_ID" "$@"
 fi

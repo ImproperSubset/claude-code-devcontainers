@@ -19,8 +19,8 @@ fi
 if [ ! -f "$MCP_FILE" ]; then
     if [ -f "$MCP_TEMPLATE" ]; then
         echo "Copying MCP server configuration..."
-        bash -c "cat '$MCP_TEMPLATE' > '$MCP_FILE'"
-        chown -R node:node "$MCP_FILE"
+        cp "$MCP_TEMPLATE" "$MCP_FILE"
+        chown node:node "$MCP_FILE"
         ls -lah "$MCP_FILE"
         echo "✓ MCP servers configured:"
         echo "  - context7 (https://mcp.context7.com/sse)"
@@ -32,17 +32,13 @@ else
     echo "MCP configuration already exists, preserving user settings"
 fi
 
-# Copy settings.json template if it doesn't exist
-if [ ! -f "$CLAUDE_HOME/settings.json" ]; then
-    if [ -f "$SETTINGS_TEMPLATE" ]; then
-        echo "Copying Claude Code settings from template..."
-        bash -c "cat '$SETTINGS_TEMPLATE' > '$CLAUDE_HOME/settings.json'"
-        chown -R node:node "$CLAUDE_HOME/settings.json"
-        ls -lah "$CLAUDE_HOME/settings.json"
-        echo "✓ Environment variables configured (MAX_MCP_OUTPUT_TOKENS, timeouts)"
-    fi
-else
-    echo "Settings already exist, preserving user settings"
+# Always overwrite settings.json from template (template is source of truth;
+# hooks and rules are managed separately by install scripts)
+if [ -f "$SETTINGS_TEMPLATE" ]; then
+    echo "Applying Claude Code settings from template..."
+    cp "$SETTINGS_TEMPLATE" "$CLAUDE_HOME/settings.json"
+    chown node:node "$CLAUDE_HOME/settings.json"
+    echo "✓ Settings applied (yolo mode, timeouts, includeCoAuthoredBy)"
 fi
 
 # Ensure npm global directory structure exists (required for npx with MCP servers)

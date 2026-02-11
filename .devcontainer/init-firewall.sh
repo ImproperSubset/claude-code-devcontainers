@@ -143,7 +143,7 @@ if ! echo "$aws_ranges" | jq -e '.prefixes' >/dev/null; then
     exit 1
 fi
 
-echo "Processing AWS IPs (US regions: us-east-1, us-west-2; Services: EC2, CLOUDFRONT)..."
+echo "Processing AWS IPs (all regions and services)..."
 while read -r cidr; do
     if [[ ! "$cidr" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/[0-9]{1,2}$ ]]; then
         echo "ERROR: Invalid CIDR range from AWS: $cidr"
@@ -151,7 +151,7 @@ while read -r cidr; do
     fi
     echo "Adding AWS range $cidr"
     ipset add allowed-domains "$cidr" -exist
-done < <(echo "$aws_ranges" | jq -r '.prefixes[] | select(.region == "us-east-1" or .region == "us-west-2") | select(.service == "EC2" or .service == "CLOUDFRONT") | .ip_prefix' | aggregate -q)
+done < <(echo "$aws_ranges" | jq -r '.prefixes[].ip_prefix' | aggregate -q)
 
 # Resolve and add other allowed domains (defense-in-depth: includes DNS backup for services above)
 for domain in \
@@ -417,6 +417,14 @@ if ! curl --connect-timeout 5 https://openrouter.ai/api/v1/models >/dev/null 2>&
     exit 1
 else
     echo "Firewall verification passed - able to reach https://openrouter.ai as expected"
+fi
+
+# Verify AWS STS access
+if ! curl --connect-timeout 5 https://sts.us-east-1.amazonaws.com/ >/dev/null 2>&1; then
+    echo "ERROR: Firewall verification failed - unable to reach https://sts.us-east-1.amazonaws.com"
+    exit 1
+else
+    echo "Firewall verification passed - able to reach https://sts.us-east-1.amazonaws.com as expected"
 fi
 
 # Verify Cerebras API access

@@ -9,7 +9,7 @@ echo "Installing Python 3.14..."
 
 # Pin Python 3.14 for the project
 echo "Pinning Python 3.14..."
-cd "${containerWorkspaceFolder:-/workspaces/claude-code-devcontainers}"
+cd "${WORKSPACE_FOLDER:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 /home/node/.local/bin/uv python pin 3.14
 
 # Get Python 3.14 path

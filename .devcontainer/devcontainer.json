@@ -43,7 +43,8 @@
     "--sysctl=net.ipv6.conf.default.disable_ipv6=1",
     "--sysctl=net.ipv6.conf.lo.disable_ipv6=1",
     "--add-host=host.docker.internal:host-gateway",
-    "--env-file=${localWorkspaceFolder}/.env"
+    "--env-file=${localWorkspaceFolder}/.env",
+    "--device=/dev/dri:/dev/dri"
   ],
   "customizations": {
     "vscode": {
@@ -107,18 +108,26 @@
     "source=cargo-shared,target=/home/node/.cargo,type=volume",
     "source=bun-shared,target=/home/node/.bun,type=volume",
     "source=local-bin-shared,target=/home/node/.local,type=volume",
-    "source=aws-config-shared,target=/home/node/.aws,type=volume",
+    "source=${localEnv:HOME}/.aws,target=/home/node/.aws,type=bind",
     "source=wrangler-config-shared,target=/home/node/.wrangler,type=volume",
     "source=vercel-config-shared,target=/home/node/.vercel,type=volume",
+    "source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind,readonly",
+    "source=${localEnv:XDG_RUNTIME_DIR}/${localEnv:WAYLAND_DISPLAY},target=/run/user/1000/${localEnv:WAYLAND_DISPLAY},type=bind",
     "source=${localEnv:HOME}/.brain,target=/home/node/.brain,type=bind",
-    "source=${localEnv:HOME}/git/hh-claude-code-setup,target=/home/node/.claude-setup,type=bind,readonly"
+    "source=${localEnv:HOME}/git/hh-claude-code-setup,target=/home/node/.claude-setup,type=bind,readonly",
+    "source=google-chrome-shared,target=/home/node/.config/google-chrome,type=volume"
   ],
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
     "POWERLEVEL9K_DISABLE_GITSTATUS": "true",
     "NPM_CONFIG_PREFIX": "/home/node/.npm-global",
-    "DEVCONTAINER": "true"
+    "DEVCONTAINER": "true",
+    "WORKSPACE_FOLDER": "/workspaces/${localWorkspaceFolderBasename}",
+    "DISPLAY": "${localEnv:DISPLAY}",
+    "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
+    "XDG_RUNTIME_DIR": "/run/user/1000",
+    "CHROMIUM_FLAGS": "--ozone-platform=wayland --no-sandbox"
     // "CLAUDE_CODE_ENABLE_TELEMETRY": "1"
     // "OTEL_LOG_USER_PROMPTS": "1",
     // "OTEL_METRICS_EXPORTER": "otlp",
@@ -128,11 +137,16 @@
     // "OTEL_RESOURCE_ATTRIBUTES": "deployment.environment=devcontainer,service.name=claude-code"
   },
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
-  "forwardPorts": [3000, 8080, 8888],
+  "appPort": [3000, 5173, 8080, 8888],
+  "forwardPorts": [3000, 5173, 8080, 8888],
   "portsAttributes": {
     "3000": {
       "label": "Gemini Server",
       "onAutoForward": "silent"
+    },
+    "5173": {
+      "label": "Vite Dev Server",
+      "onAutoForward": "notify"
     },
     "8080": {
       "label": "Development Server",
@@ -143,7 +157,7 @@
       "onAutoForward": "silent"
     }
   },
-  "postCreateCommand": "bash ${containerWorkspaceFolder}/.devcontainer/postCreate.sh",
-  "postStartCommand": "sudo /usr/local/bin/init-firewall.sh && bash ${containerWorkspaceFolder}/.devcontainer/setup-git-hooks.sh",
+  "postCreateCommand": "bash /usr/local/bin/postCreate.sh",
+  "postStartCommand": "sudo /usr/local/bin/init-firewall.sh && bash /usr/local/bin/setup-git-hooks.sh",
   "waitFor": "postCreateCommand"
 }
