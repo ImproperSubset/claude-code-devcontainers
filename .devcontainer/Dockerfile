@@ -1,8 +1,6 @@
 FROM node:22-bookworm
 
-ARG TZ
 ARG DEBIAN_FRONTEND=noninteractive
-ENV TZ="$TZ"
 
 ARG CLAUDE_CODE_VERSION=latest
 
@@ -264,33 +262,32 @@ export HISTFILE=/commandhistory/.zsh_history
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
 # ---- eza (better ls) ----
-alias ls='eza --icons --group-directories-first'
+# Don't alias ls — scripts and agents expect GNU ls output
 alias ll='eza -alh --icons --group-directories-first --git'
 alias la='eza -a --icons --group-directories-first'
 alias lt='eza --tree --icons --level=2'
 
 # ---- bat (better cat) ----
-alias cat='batcat --paging=never'
-alias catt='batcat'
+# Don't alias cat — scripts and agents expect plain cat output
 alias bat='batcat'
 export MANPAGER="sh -c 'col -bx | batcat -l man -p'"
 # help aliases — use functions instead of global aliases to avoid breaking zsh builtins
 help() { "$@" -h 2>&1 | batcat --language=help --style=plain; }
 helpf() { "$@" --help 2>&1 | batcat --language=help --style=plain; }
 
-# ---- ripgrep (better grep) ----
+# ---- ripgrep ----
 alias fd=fdfind
 alias rg='rg --smart-case'
-alias grep='rg'
+# Don't alias grep — scripts and agents expect GNU grep flags/output
 
 # ---- zoxide (better cd) ----
 eval "$(zoxide init zsh)"
 
-# ---- modern replacements ----
-alias du='dust'
-alias df='duf'
-alias ps='procs'
-alias top='btop'
+# ---- modern replacements (interactive shortcuts, don't override base commands) ----
+alias duf='duf'
+alias procs='procs'
+alias btop='btop'
+alias dust='dust'
 
 # ---- directory nav ----
 alias ..='cd ..'
