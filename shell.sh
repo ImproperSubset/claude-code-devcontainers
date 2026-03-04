@@ -11,9 +11,13 @@ WORKSPACE="/workspaces/$(basename "$REPO_DIR")"
 CONTAINER_ID=$(docker ps -q --filter "label=devcontainer.local_folder=$REPO_DIR")
 
 if [ -z "$CONTAINER_ID" ]; then
-    echo "No running devcontainer found for $REPO_DIR" >&2
-    echo "Start it from VS Code: Ctrl+Shift+P → Dev Containers: Open Folder in Container" >&2
-    exit 1
+    echo "No running devcontainer found for $REPO_DIR — starting one..." >&2
+    devcontainer up --workspace-folder "$REPO_DIR" || exit 1
+    CONTAINER_ID=$(docker ps -q --filter "label=devcontainer.local_folder=$REPO_DIR")
+    if [ -z "$CONTAINER_ID" ]; then
+        echo "Container started but could not find it. Check 'docker ps'." >&2
+        exit 1
+    fi
 fi
 
 TTY_FLAG="-i"

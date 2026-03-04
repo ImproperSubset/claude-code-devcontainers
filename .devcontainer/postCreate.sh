@@ -56,6 +56,14 @@ else
     echo "Warning: claude-wrapper not found at ~/.brain/scripts/launchers/claude-wrapper"
 fi
 
+echo "=== Setting up ralph (AI task orchestrator) ==="
+if [[ -f "$HOME/.ralph/ralph_loop.py" ]]; then
+    ln -sf "$HOME/.ralph/ralph_loop.py" "$HOME/.local/bin/ralph"
+    echo "✓ ralph symlinked to ~/.local/bin/ralph"
+else
+    echo "Warning: ralph not found at ~/.ralph/ralph_loop.py"
+fi
+
 echo "=== Configuring Google Chrome ==="
 # Chrome flags are pre-seeded via Docker named-volume initialization (see Dockerfile).
 # The google-chrome-shared volume copies chrome-flags.conf from the image on first mount.
